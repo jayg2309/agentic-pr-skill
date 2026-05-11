@@ -163,7 +163,7 @@ Wait for the user's response.
 | Reply | Action |
 |---|---|
 | **y** | Proceed to Step 5 immediately. |
-| **e** | The user's **very next message** IS the edited commit message. Do NOT prompt them with "Please provide your modified message" or any other intermediate reply — just wait for their next message. Once received, commit immediately with that message — do NOT re-confirm or ask for approval again. Go straight to Step 5. |
+| **e** | The user's **very next message** IS the edited commit message. Do NOT prompt them with "Please provide your modified message" or any other intermediate reply — just wait for their next message. Once received, **commit immediately** using that exact message — go straight to Step 5. **ABSOLUTELY NO re-confirmation, no "Ready to commit?", no second approval gate.** The edit IS the approval. |
 | **n** | Print *"Commit aborted — no changes were made."* and stop. |
 
 ---

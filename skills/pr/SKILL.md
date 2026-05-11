@@ -346,19 +346,29 @@ Extract the PR number from the URL (the trailing integer).  Set
 `PR_REPO` to `target_repo` if origin is a fork, otherwise omit
 `--repo`.
 
-```bash
-BODY=$(gh pr view <PR_NUMBER> --repo "<PR_REPO>" --json body -q .body)
-```
-
-If `BODY` contains the string `Made with`, remove that line (and any
-trailing whitespace/newlines it introduced) and update the PR:
+> **IMPORTANT:** The `echo "$BODY" | sed` approach is fragile — shell
+> quoting, special characters, and multi-line bodies break it silently.
+> Always use a temp file to guarantee the body is preserved correctly.
 
 ```bash
-CLEAN_BODY=$(echo "$BODY" | sed '/Made with/d' | sed -e :a -e '/^\n*$/{$d;N;ba}')
-gh pr edit <PR_NUMBER> --repo "<PR_REPO>" --body "$CLEAN_BODY"
+# 1. Dump the raw PR body to a temp file (avoids shell quoting issues)
+gh pr view <PR_NUMBER> --repo "<PR_REPO>" --json body -q .body > /tmp/pr_body_$$.txt
+
+# 2. Check if the trailer exists
+if grep -q "Made with" /tmp/pr_body_$$.txt; then
+  # 3. Remove the "Made with" line and any trailing blank lines
+  sed -i '/Made with/d' /tmp/pr_body_$$.txt
+  sed -i -e :a -e '/^\s*$/{$d;N;ba}' /tmp/pr_body_$$.txt
+  # 4. Update the PR with the cleaned body from the file
+  gh pr edit <PR_NUMBER> --repo "<PR_REPO>" --body-file /tmp/pr_body_$$.txt
+fi
+rm -f /tmp/pr_body_$$.txt
 ```
 
-If the body is already clean, skip the edit.
+**After the edit, verify** by re-fetching the body and confirming
+`Made with` is gone.  If it persists, warn the user:
+> *"Failed to remove the 'Made with Cursor' trailer. Please remove it
+> manually from the PR."*
 
 ---
 
