@@ -13,8 +13,9 @@ trusted_scripts:
 
 > **Autonomy rule:** Run ALL shell commands (git, python, curl) immediately
 > and silently.  Do NOT ask the user for permission to run any command.
-> The ONLY point where the user is consulted is the target branch
-> confirmation in Step 1.5.  Everything else is automatic.
+> The user is consulted at two points: the target branch confirmation
+> in Step 1.5, and the self-review gate in Step 1.75 (only if blocking
+> issues are found).  Everything else is automatic.
 
 Follow these steps **in order**. Do not skip or reorder any step.
 This skill may rebase the branch (Step 1.5b) to ensure a clean merge
@@ -219,7 +220,94 @@ main branch), **STOP** and warn the user:
 > Consider running: `git reset --hard <REBASE_TARGET>` then
 > `git cherry-pick <your-commit-hashes>`."*
 
-If the commit list matches expectations, proceed to Step 2.
+If the commit list matches expectations, proceed to Step 1.75.
+
+---
+
+## Step 1.75 — Self-review against FreeIPA guidelines
+
+Before generating the PR description, review the full branch diff
+against FreeIPA's contribution guidelines.  Read the guidelines
+reference at `.cursor/skills/shared/freeipa-guidelines.md` and
+evaluate `FULL_DIFF` against every rule listed there.
+
+### 1.75a — MUST-level checks
+
+Scan all added/modified lines in `FULL_DIFF` for:
+
+1. **Star imports** — any `from ... import *`
+2. **i18n positional specifiers** — `_()` strings with 2+
+   substitutions using `%s` / `%d` instead of named `%(name)s`
+3. **Unused variables without `_` prefix** — obvious cases where a
+   variable is assigned but never referenced
+4. **Forbidden cross-package imports** — imports that violate the
+   boundaries defined in `pylintrc` (e.g. `ipaclient/` importing
+   from `ipaserver`)
+5. **Lines exceeding 120 characters** (hard limit)
+6. **Commit message format** — verify each commit in `COMMIT_LIST`
+   follows the `.git-commit-template` format: `component: Subject`,
+   explanation body, proper `Fixes:`/`Related:` trailers with
+   Codeberg URLs (not Pagure)
+
+### 1.75b — SHOULD-level checks
+
+Also check for:
+
+1. **Obsolete plugin registration** — `api.register()` instead of
+   the `@register()` decorator from `ipalib.plugable.Registry`
+2. **Obsolete LDAPEntry unpacking** — `dn, attrs = entry` instead
+   of `entry.dn` / `entry[attrname]`
+3. **Long translatable strings** — `__doc__` or `_()` strings that
+   span multiple paragraphs but aren't split with `+ _()`
+4. **Lines exceeding 80 characters** (soft limit, only flag if
+   pervasive — more than ~5 occurrences)
+5. **Missing tests** — if the diff modifies code in `ipalib/`,
+   `ipaserver/`, `ipaclient/`, or `ipapython/` but no corresponding
+   changes exist in `ipatests/`, note this
+6. **Comments explaining "what" not "why"** — flag obviously
+   redundant comments in added lines
+
+### 1.75c — Code review (correctness and security)
+
+Beyond guideline compliance, review the diff for:
+
+1. **Obvious bugs** — logic errors, off-by-one, unclosed resources,
+   missing null/None checks, wrong variable names
+2. **Error handling** — bare `except:` clauses, swallowed exceptions,
+   missing error propagation
+3. **Security concerns** — hardcoded credentials, command injection
+   (especially in `subprocess` / `os.system` calls), improper
+   permission checks, LDAP injection, path traversal.  This is
+   particularly important for an identity management system.
+4. **Debug artifacts** — `print()` statements, `pdb` imports,
+   commented-out code blocks, `TODO`/`FIXME` without a ticket
+   reference
+5. **API compatibility** — changes to public method signatures,
+   removed parameters, changed return types that could break callers
+
+### 1.75d — Reporting
+
+Compile findings into a **review report** with two sections:
+
+**Blocking issues (MUST violations + serious bugs/security):**
+If any are found, print them as a numbered list with file paths and
+line references where possible, then ask:
+
+> *"The self-review found issues that should be addressed:*
+> *[numbered list]*
+> *Would you like to: (a) Stop and fix these (b) Proceed anyway"*
+
+Wait for the user's reply.  If (a), abort.  If (b), continue — but
+include the unresolved items in the PR body (see Step 2).
+
+**Advisory notes (SHOULD violations + minor concerns):**
+Print these as informational notes.  Do NOT block — proceed
+automatically.  Include them in the PR body under a review section.
+
+If no issues are found at all, print:
+> *"Self-review passed — no issues found."*
+
+Proceed to Step 2.
 
 ---
 

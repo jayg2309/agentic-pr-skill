@@ -228,3 +228,39 @@ This is not an error — the skills will still work, just without chat context f
 - The transcripts directory path is misconfigured
 
 The skill proceeds normally and generates the commit message from the diff alone.
+
+---
+
+### Self-review reports false positives
+
+The guideline check or self-review flags an issue that isn't actually a violation (e.g. a variable that looks unused but is used via reflection, or an import that appears forbidden but is allowed by convention).
+
+This is expected — the review is heuristic, not a linter. When prompted:
+- Choose **(b) Proceed anyway** to continue past the finding
+- The false positive will appear in the PR body under **Review Notes**, where a human reviewer can dismiss it
+
+If a particular pattern consistently triggers false positives, consider noting it in the PR description so reviewers understand the context.
+
+---
+
+### Self-review blocks on a rule you disagree with
+
+The self-review checks are based on FreeIPA's official contribution guidelines at `skills/shared/freeipa-guidelines.md`. If a rule seems wrong or outdated:
+
+1. Check the upstream documentation to confirm the current convention
+2. If the rule in `freeipa-guidelines.md` is outdated, update it to match upstream
+3. If you believe the upstream rule should change, raise it on the `freeipa-devel` mailing list
+
+---
+
+### Guidelines file not found
+
+**Error:** The agent can't find `freeipa-guidelines.md`
+
+The skills expect the guidelines file at `.cursor/skills/shared/freeipa-guidelines.md` relative to the repository root. Make sure the skills directory is properly set up:
+
+```bash
+ls -la .cursor/skills/shared/freeipa-guidelines.md
+```
+
+If missing, re-copy the `skills/` directory from `agentic-pr-skill/` into your workspace's `.cursor/` directory.

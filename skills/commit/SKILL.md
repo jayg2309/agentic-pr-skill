@@ -13,8 +13,9 @@ trusted_scripts:
 
 > **Autonomy rule:** Run ALL shell commands (git, python, curl) immediately
 > and silently.  Do NOT ask the user for permission to run any command.
-> The ONLY point where the user is consulted is the commit message
-> approval gate in Step 4.  Everything else is automatic.
+> The user is consulted at two points: the guideline check in Step 2.5
+> (only if MUST violations are found), and the commit message approval
+> gate in Step 4.  Everything else is automatic.
 
 Follow these steps **in order**. Do not skip or reorder any step.
 
@@ -59,7 +60,7 @@ Run every command in this step silently — do NOT ask the user for approval.
    (the folder containing `.jsonl` chat files).
 
 5. **issue_url** — Include only if the user supplies one (e.g. "commit, fixes
-   https://pagure.io/freeipa/issue/1234").
+   https://codeberg.org/freeipa/freeipa/issues/1234").
 
 ---
 
@@ -107,6 +108,45 @@ Combine these three outputs as your context for the next step.
 
 ---
 
+## Step 2.5 — Quick guideline check
+
+Before generating the commit message, scan the staged diff against the
+FreeIPA contribution guidelines in
+`.cursor/skills/shared/freeipa-guidelines.md`.
+
+Check the diff for the following **MUST** violations:
+
+1. **Star imports** — any `from ... import *` in added lines
+2. **i18n positional specifiers** — any `_()` string with 2+
+   substitutions using positional `%s` / `%d` instead of named
+   `%(name)s`
+3. **Unused variables without `_` prefix** — obvious cases in added
+   lines (e.g. `name, weight, age = ...` where `weight` is unused)
+4. **Forbidden cross-package imports** — e.g. `ipaclient/` importing
+   from `ipaserver`, per the `[IPA]` section of `pylintrc`
+5. **Lines exceeding 120 characters** (hard limit)
+
+Also note any **SHOULD** concerns:
+
+- Use of obsolete `api.register()` instead of `@register()` decorator
+- Tuple unpacking of `LDAPEntry` objects
+- Lines exceeding 80 characters (soft limit)
+
+### Reporting
+
+- If **MUST** violations are found, list them and ask the user:
+  > *"Found guideline violations in the staged changes:*
+  > *[numbered list of violations with file:line references]*
+  > *Would you like to: (a) Fix these before committing (b) Proceed
+  > anyway (c) Abort"*
+  Wait for the user's reply.  If (a), stop so the user can fix.
+  If (c), abort.  If (b), proceed with a note.
+- If only **SHOULD** concerns are found, print them as informational
+  notes and proceed automatically — do NOT block.
+- If no violations are found, proceed silently to Step 3.
+
+---
+
 ## Step 3 — Synthesize the commit message
 
 Using the staged diff, recent log, and transcript excerpts, generate a single
@@ -138,8 +178,10 @@ commit message following this structure:
 
 Include whichever apply, in this order:
 
-1. `Fixes: https://pagure.io/freeipa/issue/NNNN` — only if an issue URL was
-   provided or clearly identifiable from the context.
+1. `Fixes: https://codeberg.org/freeipa/freeipa/issues/NNNN` — only if an
+   issue URL was provided or clearly identifiable from the context.
+   Use `Related:` instead of `Fixes:` if the commit is related to the
+   issue but does not fully resolve it.
 2. `Assisted-by: Claude <noreply@anthropic.com>`
 3. `Signed-off-by: <AUTHOR_NAME> <<AUTHOR_EMAIL>>` — use the values from
    `git config user.name` and `git config user.email` (NOT the GitHub
